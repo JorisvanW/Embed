@@ -84,26 +84,44 @@ final class CurlDispatcher
 
         $cookies = $settings['cookies_path'] ?? str_replace('//', '/', sys_get_temp_dir().'/embed-cookies.txt');
 
-        curl_setopt_array($this->curl, [
-            CURLOPT_HTTPHEADER => $this->getRequestHeaders(),
-            CURLOPT_POST => strtoupper($request->getMethod()) === 'POST',
-            CURLOPT_MAXREDIRS => 10,
+         $curlOptions = [
+            CURLOPT_HTTPHEADER     => $this->getRequestHeaders(),
+            CURLOPT_POST           => strtoupper($request->getMethod()) === 'POST',
+            CURLOPT_MAXREDIRS      => 10,
             CURLOPT_CONNECTTIMEOUT => 10,
-            CURLOPT_TIMEOUT => 10,
+            CURLOPT_TIMEOUT        => 10,
             CURLOPT_RETURNTRANSFER => true,
             CURLOPT_SSL_VERIFYHOST => 0,
             CURLOPT_SSL_VERIFYPEER => false,
-            CURLOPT_ENCODING => '',
-            CURLOPT_CAINFO => CaBundle::getSystemCaRootBundlePath(),
-            CURLOPT_AUTOREFERER => true,
+            CURLOPT_ENCODING       => '',
+            CURLOPT_CAINFO         => CaBundle::getSystemCaRootBundlePath(),
+            CURLOPT_AUTOREFERER    => true,
             CURLOPT_FOLLOWLOCATION => true,
-            CURLOPT_IPRESOLVE => CURL_IPRESOLVE_V4,
-            CURLOPT_USERAGENT => $request->getHeaderLine('User-Agent'),
-            CURLOPT_COOKIEJAR => $cookies,
-            CURLOPT_COOKIEFILE => $cookies,
+            CURLOPT_IPRESOLVE      => CURL_IPRESOLVE_V4,
+            CURLOPT_USERAGENT      => $request->getHeaderLine('User-Agent'),
+            CURLOPT_COOKIEJAR      => $cookies,
+            CURLOPT_COOKIEFILE     => $cookies,
             CURLOPT_HEADERFUNCTION => [$this, 'writeHeader'],
-            CURLOPT_WRITEFUNCTION => [$this, 'writeBody'],
-        ]);
+            CURLOPT_WRITEFUNCTION  => [$this, 'writeBody'],
+        ];
+
+        // Overwrite the defaults with the curl options
+        foreach ($curlOptions as $curlOptionKey => $curlOptionValue) {
+            $curlSetting = $curlOptionValue;
+
+            // Allow null as value to unset
+            try {
+                $curlSetting = $this->settings[$curlOptionKey];
+            }   catch (\Exception $e) {}
+
+            if ($curlSetting === 'unset' || $curlSetting === null) {
+                unset($curlOptions[$curlOptionKey]);
+            } else {
+                $curlOptions[$curlOptionKey] = $curlSetting;
+            }
+        }
+
+        curl_setopt_array($this->curl, $curlOptions);
     }
 
     private function exec(ResponseFactoryInterface $responseFactory): ResponseInterface
